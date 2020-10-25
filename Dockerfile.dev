@@ -1,0 +1,17 @@
+FROM ubuntu:latest
+
+WORKDIR '/app'
+
+RUN apt-get update
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+RUN apt-get install -y git build-essential cmake
+
+COPY . ./kylea
+RUN mkdir kylea-build-debug
+
+WORKDIR '/app/kylea-build-debug'
+RUN cmake ../kylea -DCMAKE_BUILD_TYPE=debug
+RUN make && make install
+
+CMD ["kylea_tests"]

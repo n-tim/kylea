@@ -10,3 +10,4 @@ add_executable(kylea_tests)
 target_sources(kylea_tests PRIVATE main.cpp)
 
 target_link_libraries(kylea_tests buffer_provider gtest)
+install(TARGETS kylea_tests DESTINATION bin)

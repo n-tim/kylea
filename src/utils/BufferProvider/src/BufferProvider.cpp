@@ -1,6 +1,7 @@
 #include "BufferProvider.h"
 
 #include <functional>
+#include <algorithm>
 #include <mutex>
 
 #include"Buffer.h"

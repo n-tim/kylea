@@ -1,2 +1,2 @@
 add_subdirectory(BufferProvider)
-add_subdirectory(sharedCreator)
+add_subdirectory(SharedCreator)
