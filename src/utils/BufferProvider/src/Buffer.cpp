@@ -1,5 +1,9 @@
 #include "Buffer.h"
 
+Buffer::Buffer()
+  : Buffer(0)
+{}
+
 Buffer::Buffer(std::size_t size)
   : data_(size)
   , size_(0)

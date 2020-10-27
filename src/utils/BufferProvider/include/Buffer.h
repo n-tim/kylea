@@ -26,8 +26,12 @@ public:
   inline void take() { busy_ = true; }
   inline void free() { busy_ = false; }
 
+  Buffer(Buffer&&) = default;
+  Buffer& operator=(Buffer&&) = default;
+
 protected:
-  Buffer(std::size_t maxSize);
+  Buffer();
+  explicit Buffer(std::size_t size);
   virtual ~Buffer();
 
   Buffer(const Buffer& buffer) = delete;

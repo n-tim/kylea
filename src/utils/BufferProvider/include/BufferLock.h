@@ -2,7 +2,7 @@
 #define BUFFERLOCK_H
 
 #include "Buffer.h"
-#include "BufferLockPtr.h"
+#include "BufferLockPtr.hpp"
 
 class BufferLock
 {
