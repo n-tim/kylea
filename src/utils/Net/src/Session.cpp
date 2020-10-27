@@ -183,6 +183,7 @@ void Session::handleReadHeader(const MetaMessagePtr& message, const boost::syste
       }
       else
       {
+        LOG_TRACE << "empty message!";
         onMessageReceived(message);
         readNext();
       }
@@ -312,7 +313,7 @@ void Session::handleWrite(const MessagePtr& message, const boost::system::error_
 void Session::onMessageReceived(const MetaMessagePtr& message)
 {
   auto type = message->type();
-  if (!(MessageType::Invalid < type && type < MessageType::Last))
+  if (MessageType::Invalid < type && type < MessageType::Last)
   {
     if (type == MessageType::Ping)
     {

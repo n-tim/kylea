@@ -20,6 +20,7 @@ Message::Message(const MessageType& messageType, const BufferPtr& payload)
   , payload_(payload)
 {
   countHeaderCRC();
+  countPayloadCRC();
 }
 
 MessageType Message::type() const

@@ -6,7 +6,7 @@ Buffer::Buffer()
 
 Buffer::Buffer(std::size_t size)
   : data_(size)
-  , size_(0)
+  , size_(size)
   , busy_(false)
 {}
 
@@ -31,11 +31,7 @@ std::size_t Buffer::size() const
 void Buffer::resize(std::size_t size)
 {
   size_ = size;
-
-  if (size_ > data_.size())
-  {
-    data_.resize(size_);
-  }
+  data_.resize(size_);
 }
 
 void Buffer::reset()
