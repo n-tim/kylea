@@ -1,0 +1,15 @@
+FROM ubuntu:latest
+
+WORKDIR '/app'
+
+RUN apt-get update
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+RUN apt-get install -y git build-essential cmake
+RUN apt-get install -y libboost-all-dev
+
+COPY build_test.sh .
+
+RUN chmod +x build_test.sh
+
+CMD ["bash"]

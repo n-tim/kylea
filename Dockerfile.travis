@@ -6,6 +6,7 @@ RUN apt-get update
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
 RUN apt-get install -y git build-essential cmake
+RUN apt-get install -y libboost-all-dev
 
 COPY . ./kylea
 RUN mkdir kylea-build-debug

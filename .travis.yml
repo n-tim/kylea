@@ -4,7 +4,7 @@ services:
     - docker
 
 before_install:
-    - docker build -t kylea -f Dockerfile.dev .
+    - docker build -t kylea -f Dockerfile.travis .
 
 script:
     - docker run -e CI=true kylea
