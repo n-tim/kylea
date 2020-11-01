@@ -15,25 +15,21 @@ bool exceptionHandle(const boost::exception_ptr&, const std::string&)
   return false;
 }
 
-BufferPtr createBufferFromString(const std::string& str)
+BufferPtr stringToBuffer(const std::string& str)
 {
-  std::cerr << "createBufferFromString: str = " << str << std::endl;
-
   auto buffer = Buffer::create(str.size());
   memcpy(reinterpret_cast<void*>(buffer->data()), reinterpret_cast<const void*>(str.c_str()), str.size());
 
-  std::cerr << "createBufferFromString: buffer->size() = " << buffer->size() << std::endl;
-
-
-  {
-    std::string str;
-    str.resize(buffer->size());
-    memcpy(const_cast<char*>(str.c_str()), buffer->data(), buffer->size());
-    std::cerr << "checking!" << std::endl;
-    std::cerr << str << std::endl;
-  }
-
   return buffer;
+}
+
+std::string bufferToString(const BufferPtr& buffer)
+{
+  std::string str;
+  str.resize(buffer->size());
+  memcpy(const_cast<char*>(str.c_str()), buffer->data(), buffer->size());
+
+  return str;
 }
 
 int main(int argc, char *argv[])
@@ -50,7 +46,7 @@ int main(int argc, char *argv[])
     int port = std::stoi(argv[2]);
     int rndDisconnectTime = std::stoi(argv[3]);
 
-    std::cerr << "args: " << ip << ":" << port;
+    std::cerr << "args: " << ip << ":" << port << std::endl;
 
     std::size_t cpuCount = 4;//(!(boost::thread::hardware_concurrency()) ? 2 : boost::thread::hardware_concurrency() * 2);
     boost::asio::io_context ioService(cpuCount);
@@ -69,22 +65,22 @@ int main(int argc, char *argv[])
     });
 
     Net::Client client;
-
     client.configure(ip, port);
 
-    client.request(createBufferFromString(std::string("hi there!")), [](const BufferPtr& payload)
+    std::string input;
+    std::cout << "enter message" << std::endl;
+    while (true)
     {
-      std::cerr << "response: payload->size() = " << payload->size() << std::endl;
-      std::string str;
-      str.resize(payload->size());
-      memcpy(const_cast<char*>(str.c_str()), payload->data(), payload->size());
-      std::cerr << "it should be bye there!" << std::endl;
-      std::cerr << str << std::endl;
-    }, []()
-    {
-      std::cerr << "onError!";
-    });
-
+      std::cin >> input;
+      std::cerr << "sending request" << input << std::endl;
+      client.request(stringToBuffer(input), [](const BufferPtr& payload)
+      {
+        std::cerr << bufferToString(payload) << std::endl;
+      }, []()
+      {
+        std::cerr << "onError!";
+      });
+    }
 
     threadPool.stop();
   }

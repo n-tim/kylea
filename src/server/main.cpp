@@ -12,13 +12,21 @@
 #include <Buffer.h>
 #include <SessionInterface.hpp>
 
-BufferPtr createBufferFromString(const std::string& str)
+BufferPtr stringToBuffer(const std::string& str)
 {
-  std::cerr << "createBufferFromString: str = " << str << std::endl;
   auto buffer = Buffer::create(str.size());
   memcpy(reinterpret_cast<void*>(buffer->data()), reinterpret_cast<const void*>(str.c_str()), str.size());
 
   return buffer;
+}
+
+std::string bufferToString(const BufferPtr& buffer)
+{
+  std::string str;
+  str.resize(buffer->size());
+  memcpy(const_cast<char*>(str.c_str()), buffer->data(), buffer->size());
+
+  return str;
 }
 
 bool exceptionHandle(const boost::exception_ptr&, const std::string& error_message)
@@ -71,11 +79,7 @@ int main(int argc, char *argv[])
 
         virtual void onReceived(const BufferPtr& payload, const Net::SessionInterfacePtr& session) override
         {
-          std::cerr << "received message!";
-
-          std::cerr << "onReceived: payload->size() = " << payload->size() << std::endl;
-
-          session->send(createBufferFromString(std::string("bye there!")));
+          session->send(stringToBuffer(bufferToString(payload) + "_answer"));
         }
       };
 
