@@ -1,12 +1,25 @@
 FROM ubuntu:latest
 
-WORKDIR '/app'
-
 RUN apt-get update
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
 RUN apt-get install -y git build-essential cmake
 RUN apt-get install -y libboost-all-dev
+
+RUN apt-get install -y autoconf automake libtool
+
+WORKDIR '/opt'
+RUN git clone --verbose https://github.com/protocolbuffers/protobuf.git \
+    && cd protobuf \
+    && git submodule update --init --recursive \
+    && ls -la \
+    && ./autogen.sh \
+    && ./configure --prefix=/usr \
+    && make -j2 && make install
+
+#-Dprotobuf_BUILD_TESTS=FALSE
+
+WORKDIR '/opt/app'
 
 COPY build_test.sh .
 

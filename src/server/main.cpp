@@ -11,6 +11,7 @@
 #include <Server.hpp>
 #include <Buffer.h>
 #include <SessionInterface.hpp>
+#include <auth.pb.h>
 
 BufferPtr stringToBuffer(const std::string& str)
 {
@@ -79,7 +80,16 @@ int main(int argc, char *argv[])
 
         virtual void onReceived(const BufferPtr& payload, const Net::SessionInterfacePtr& session) override
         {
-          session->send(stringToBuffer(bufferToString(payload) + "_answer"));
+          kylea::LoginRequest request;
+          request.ParseFromArray(payload->data(), payload->size());
+
+          kylea::LoginResponse response;
+          response.set_id(request.login() + "___" + request.password() + "___answer");
+
+          auto buffer = Buffer::create(response.ByteSizeLong());
+          response.SerializeToArray(buffer->data(), buffer->size());
+
+          session->send(buffer);
         }
       };
 

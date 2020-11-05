@@ -9,6 +9,7 @@
 
 #include <Client.hpp>
 #include <Buffer.h>
+#include <auth.pb.h>
 
 bool exceptionHandle(const boost::exception_ptr&, const std::string&)
 {
@@ -34,6 +35,8 @@ std::string bufferToString(const BufferPtr& buffer)
 
 int main(int argc, char *argv[])
 {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   try
   {
     if (argc < 4)
@@ -68,14 +71,21 @@ int main(int argc, char *argv[])
     client.configure(ip, port);
 
     std::string input;
-    std::cout << "enter message" << std::endl;
+    std::cout << "enter message: login \n password" << std::endl;
     while (true)
     {
-      std::cin >> input;
-      std::cerr << "sending request" << input << std::endl;
-      client.request(stringToBuffer(input), [](const BufferPtr& payload)
+      kylea::LoginRequest login;
+      std::cin >> *login.mutable_login() >> *login.mutable_password();
+      std::cerr << "sending request" << login.DebugString() << std::endl;
+
+      auto buffer = Buffer::create(login.ByteSizeLong());
+      login.SerializeToArray(buffer->data(), buffer->size());
+
+      client.request(buffer, [](const BufferPtr& payload)
       {
-        std::cerr << bufferToString(payload) << std::endl;
+        kylea::LoginResponse response;
+        response.ParseFromArray(payload->data(), payload->size());
+        std::cerr << response.DebugString() << std::endl;
       }, []()
       {
         std::cerr << "onError!";
