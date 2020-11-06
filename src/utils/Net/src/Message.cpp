@@ -12,12 +12,17 @@ Message::~Message()
 {}
 
 Message::Message(const MessageType& messageType)
-  : Message(messageType, Buffer::create())
+  : Message(messageType, Buffer::create(), MessageSendCallback(nullptr))
 {}
 
 Message::Message(const MessageType& messageType, const BufferPtr& payload)
+  : Message(messageType, payload, MessageSendCallback(nullptr))
+{}
+
+Message::Message(const MessageType& messageType, const BufferPtr& payload, const MessageSendCallback& callback)
   : header_(messageType)
   , payload_(payload)
+  , callback_(callback)
 {
   countHeaderCRC();
   countPayloadCRC();

@@ -8,7 +8,7 @@
 #define LOG_TRACE std::cerr
 #define LOG_ERROR std::cerr
 #define LOG_DEBUG std::cerr
-#define LOG_TRACE_IF_ERROR(error, msg) if(error) std::cerr << msg << ": " << error.message()
+#define LOG_TRACE_IF_ERROR(error, msg) if(error) std::cerr << msg << ": " << error.message() << std::endl
 
 using namespace Net;
 
@@ -17,6 +17,7 @@ Server::Server(const HandlerMapperCreateFunction& createHandlerMapper)
   , threadPool_(ioService_, Threads)
   , acceptor_(ioService_)
   , endpoint_()
+  , sslContext_(boost::asio::ssl::context::tlsv12)
   , createHandlerMapper_(createHandlerMapper)
   , sessionManager_(ioService_)
 {
@@ -43,6 +44,39 @@ bool Server::start(const std::string& ip, int port)
     endpoint_ = tcp::endpoint(boost::asio::ip::address::from_string(ip), port);
   }
 
+  LOG_TRACE << "HI THERE!" << std::endl;
+
+  {
+    sslContext_.set_options(
+        boost::asio::ssl::context::default_workarounds
+        | boost::asio::ssl::context::no_sslv2
+        | boost::asio::ssl::context::single_dh_use);
+
+    LOG_TRACE << "HI THERE 1!" << std::endl;
+
+    //sslContext_.set_verify(SSL_VERIFY_NONE)
+
+    sslContext_.set_password_callback([](std::size_t, boost::asio::ssl::context::password_purpose ){
+      return "test";
+    });
+
+    LOG_TRACE << "HI THERE 2!" << std::endl;
+
+    boost::system::error_code error;
+
+    sslContext_.use_certificate_chain_file("/opt/app/kylea/src/server/cert.pem", error);
+
+    LOG_TRACE_IF_ERROR(error, "use_certificate_chain_file");
+
+    sslContext_.use_private_key_file("/opt/app/kylea/src/server/key.pem", boost::asio::ssl::context::pem, error);
+
+    LOG_TRACE_IF_ERROR(error, "use_private_key_file");
+
+    sslContext_.use_tmp_dh_file("dh2048.pem", error);
+
+    LOG_TRACE_IF_ERROR(error, "use_tmp_dh_file");
+  }
+
   acceptor_.open(endpoint_.protocol());
   boost::system::error_code error;
 
@@ -57,6 +91,7 @@ bool Server::start(const std::string& ip, int port)
   {
     return false;
   }
+
 
   LOG_DEBUG << "server started";
 
@@ -87,7 +122,7 @@ bool Server::stop()
 
 void Server::accept()
 {
-  SessionPtr session = Session::create(ioService_);
+  SessionPtr session = Session::create(ioService_, sslContext_);
 
   SessionInterface::ReceiveHandler receiveHandler = nullptr;
 
@@ -125,7 +160,7 @@ void Server::handleAccept(const SessionPtr& session, const boost::system::error_
   {
     if (!error)
     {
-      session->open();
+      session->open(boost::asio::ssl::stream_base::server);
     }
 
     accept();

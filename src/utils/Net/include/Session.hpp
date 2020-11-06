@@ -10,6 +10,7 @@
 
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/deadline_timer.hpp>
@@ -43,14 +44,14 @@ namespace Net
     virtual void send(const BufferPtr& payload) override;
     virtual void drop() override;
 
-    void open();
+    void open(const boost::asio::ssl::stream_base::handshake_type& handshakeType);
     void cancelAllPendingOperations();
     void close();
 
     boost::asio::ip::tcp::socket& socket();
 
   protected:
-    Session(boost::asio::io_context& ioService);
+    Session(boost::asio::io_context& ioService, boost::asio::ssl::context& context);
     virtual ~Session();
 
   private:
@@ -69,11 +70,13 @@ namespace Net
 
     void readNext();
     void writeNext();
-;
+
+    void asyncHandshake(const boost::asio::ssl::stream_base::handshake_type& handshakeType);
     void asyncReadHeader(const MetaMessagePtr& Message);
     void asyncReadBody(const MetaMessagePtr& Message);
     void asyncWrite(const MessagePtr& Message);
 
+    void handleHandshake(const boost::system::error_code& error);
     void handleReadHeader(const MetaMessagePtr& Message, const boost::system::error_code& error);
     void handleReadBody(const MetaMessagePtr& Message, const boost::system::error_code& error);
     void handleWrite(const MessagePtr& Message, const boost::system::error_code& error);
@@ -86,7 +89,7 @@ namespace Net
     void handleReadTimeOut(const boost::system::error_code& error);
 
   private:
-    boost::asio::ip::tcp::socket socket_;
+    boost::asio::ssl::stream<boost::asio::ip::tcp::socket> socket_;
     boost::asio::strand<boost::asio::io_context::executor_type> socketStrand_;
     boost::asio::strand<boost::asio::io_context::executor_type> readStrand_;
 

@@ -4,6 +4,7 @@
 #include <string>
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include <ThreadPool.h>
 
@@ -41,6 +42,8 @@ namespace Net
 
     boost::asio::ip::tcp::acceptor acceptor_;
     boost::asio::ip::tcp::endpoint endpoint_;
+
+    boost::asio::ssl::context sslContext_;
 
     HandlerMapperCreateFunction createHandlerMapper_;
 

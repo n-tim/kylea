@@ -3,6 +3,8 @@
 #include <iostream>
 
 #include <boost/bind.hpp>
+#include <boost/current_function.hpp>
+#include <openssl/ssl3.h>
 
 #include <Buffer.h>
 
@@ -16,22 +18,22 @@
 
 using namespace Net;
 
-Session::Session(boost::asio::io_context& ioService)
-  : socket_(ioService)
+Session::Session(boost::asio::io_context& ioService, boost::asio::ssl::context& context)
+  : socket_(ioService, context)
   , socketStrand_(boost::asio::make_strand(ioService))
   , readStrand_(boost::asio::make_strand(ioService))
   , readTimer_(ioService)
   , readTimerStrand_(boost::asio::make_strand(ioService))
   , randomNumberGenerator_(PingTimeOut, PingTimeOut * 0.25)
 {
-  LOG_TRACE << "session created";
+  LOG_TRACE << "session created" << std::endl;
 
   isConnected_ = false;
 }
 
 Session::~Session()
 {
-  LOG_TRACE << "session deleted";
+  LOG_TRACE << "session deleted" << std::endl;
 }
 
 void Session::configure(const OpenHandler& openHandler, const CloseHandler& closeHandler, const ReceiveHandler& receiveHandler)
@@ -52,11 +54,11 @@ void Session::drop()
   close();
 }
 
-void Session::open()
+void Session::open(const boost::asio::ssl::stream_base::handshake_type & handshakeType)
 {
   if (isConnected_)
   {
-    LOG_TRACE << "open: already opened";
+    LOG_TRACE << "open: already opened" << std::endl;
     return;
   }
 
@@ -64,18 +66,24 @@ void Session::open()
 
   isConnected_ = true;
 
+  // auto self = shared_from_this();
+  // boost::asio::post(readTimerStrand_, [this, self]()
+  // {
+  //   lastTimeRead_ = std::chrono::system_clock::now();
+  // });
+
   auto self = shared_from_this();
-  boost::asio::post(readTimerStrand_, [this, self]()
+  boost::asio::post(socketStrand_, [this, self, handshakeType]()
   {
-    lastTimeRead_ = std::chrono::system_clock::now();
+    asyncHandshake(handshakeType);
   });
 
-  readNext();
+  // readNext();
 
-  if (openHandler_)
-  {
-    openHandler_(self);
-  }
+  // if (openHandler_)
+  // {
+  //   openHandler_(self);
+  // }
 }
 
 void Session::cancelAllPendingOperations()
@@ -84,7 +92,7 @@ void Session::cancelAllPendingOperations()
   boost::asio::post(socketStrand_, [this, self]()
   {
     boost::system::error_code error;
-    socket_.cancel(error);
+    socket().cancel(error);
 
     LOG_TRACE_IF_ERROR(error, "cancelAllPendingOperations");
   });
@@ -99,7 +107,7 @@ void Session::close()
 
   if (!isConnected_)
   {
-    LOG_TRACE << "close: already closed";
+    LOG_TRACE << "close: already closed" << std::endl;
 
     return;
   }
@@ -113,21 +121,21 @@ void Session::close()
     }
 
     boost::system::error_code error;
-    socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
-    socket_.close(error);
+    socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
+    socket().close(error);
 
     if (closeHandler_)
     {
       closeHandler_(self);
     }
 
-    LOG_TRACE << "close: socket closed";
+    LOG_TRACE << "close: socket closed" << std::endl;
   });
 }
 
 boost::asio::ip::tcp::socket& Session::socket()
 {
-  return socket_;
+  return socket_.next_layer();
 }
 
 void Session::configureSocket()
@@ -135,11 +143,25 @@ void Session::configureSocket()
   boost::system::error_code error;
 
   {
-    boost::asio::ip::tcp::socket::linger opt(false, 0);
-    socket_.set_option(opt, error);
+    //boost::asio::ip::tcp::socket::linger opt(false, 0);
+    socket().set_option(boost::asio::ip::tcp::no_delay(true));
+    //socket().set_option(opt, error);
 
     LOG_TRACE_IF_ERROR(error, "option linger setted");
   }
+
+  // {
+  //   auto cb = [](bool preverified, boost::asio::ssl::verify_context& ctx) {
+  //       char subject_name[256];
+  //       X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
+  //       X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
+
+  //       std::cout << "SSL Verify: " << subject_name << "\n";
+
+  //       return preverified;
+  //   };
+  //   socket_.set_verify_callback(cb);
+  // }
 }
 
 void Session::ping()
@@ -158,8 +180,46 @@ void Session::readNext()
   asyncReadHeader(message);
 }
 
+void Session::asyncHandshake(const boost::asio::ssl::stream_base::handshake_type& handshakeType)
+{
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
+  socket_.async_handshake(handshakeType,
+    boost::asio::bind_executor(socketStrand_, boost::bind(&Session::handleHandshake, shared_from_this(), boost::asio::placeholders::error)));
+}
+
+void Session::handleHandshake(const boost::system::error_code& error)
+{
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
+  isConnected_ = true;
+
+  if (!error)
+  {
+    auto self = shared_from_this();
+    boost::asio::post(readTimerStrand_, [this, self]()
+    {
+      lastTimeRead_ = std::chrono::system_clock::now();
+    });
+
+    readNext();
+
+    if (openHandler_)
+    {
+      openHandler_(self);
+    }
+  }
+  else if (error != boost::asio::error::operation_aborted)
+  {
+    LOG_TRACE << "close from handleHandshake: " << error.message();
+    close();
+  }
+}
+
 void Session::asyncReadHeader(const MetaMessagePtr& message)
 {
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
   boost::asio::async_read(socket_,
     boost::asio::buffer(reinterpret_cast<void*>(&(message->header())), MetaMessage::HeaderSize),
     boost::asio::transfer_at_least(MetaMessage::HeaderSize),
@@ -170,6 +230,8 @@ void Session::asyncReadHeader(const MetaMessagePtr& message)
 
 void Session::handleReadHeader(const MetaMessagePtr& message, const boost::system::error_code& error)
 {
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
   cancelReadTimer();
 
   if (!error)
@@ -183,26 +245,28 @@ void Session::handleReadHeader(const MetaMessagePtr& message, const boost::syste
       }
       else
       {
-        LOG_TRACE << "empty message!";
+        LOG_TRACE << "empty message!" << std::endl;
         onMessageReceived(message);
         readNext();
       }
     }
     else
     {
-      LOG_TRACE << "handleReadHeader: verify failed!";
+      LOG_TRACE << "handleReadHeader: verify failed!" << std::endl;
       close();
     }
   }
   else if (error != boost::asio::error::operation_aborted)
   {
-    LOG_TRACE << "close from handleReadHeader: " << error.message();
+    LOG_TRACE << "close from handleReadHeader: " << error.message() << std::endl;
     close();
   }
 }
 
 void Session::asyncReadBody(const MetaMessagePtr& message)
 {
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
   auto& payload = message->payload();
 
   boost::asio::async_read(socket_,
@@ -215,6 +279,8 @@ void Session::asyncReadBody(const MetaMessagePtr& message)
 
 void Session::handleReadBody(const MetaMessagePtr& message, const boost::system::error_code& error)
 {
+  LOG_TRACE << BOOST_CURRENT_FUNCTION << std::endl;
+
   cancelReadTimer();
 
   if (!error)
@@ -227,13 +293,13 @@ void Session::handleReadBody(const MetaMessagePtr& message, const boost::system:
     }
     else
     {
-      LOG_TRACE << "handleReadBody: verify failed!";
+      LOG_TRACE << "handleReadBody: verify failed!" << std::endl;
       close();
     }
   }
   else if (error != boost::asio::error::operation_aborted)
   {
-    LOG_TRACE << "close from handleReadBody: " << error.message();
+    LOG_TRACE << "close from handleReadBody: " << error.message() << std::endl;
     close();
   }
 }
@@ -304,7 +370,7 @@ void Session::handleWrite(const MessagePtr& message, const boost::system::error_
     }
     else if (error != boost::asio::error::operation_aborted)
     {
-      LOG_TRACE << "close from handleWrite: " << error.message();
+      LOG_TRACE << "close from handleWrite: " << error.message() << std::endl;
       close();
     }
   }
@@ -321,13 +387,13 @@ void Session::onMessageReceived(const MetaMessagePtr& message)
     }
     else if (type != MessageType::Pong)
     {
-      LOG_TRACE << "handling message!\n";
+      LOG_TRACE << "handling message!\n" << std::endl;
       handleMessage(message);
     }
   }
   else
   {
-    LOG_ERROR << "received message with invalid type! type = " << type;
+    LOG_ERROR << "received message with invalid type! type = " << type << std::endl;
   }
 }
 
@@ -362,7 +428,7 @@ void Session::cancelReadTimer()
 
     if (error)
     {
-      LOG_TRACE << "cancelReadTimer: " << error.message();
+      LOG_TRACE << "cancelReadTimer: " << error.message() << std::endl;
     }
 
     lastTimeRead_ = std::chrono::system_clock::now();
@@ -384,9 +450,9 @@ void Session::handleReadTimeOut(const boost::system::error_code& error)
 
     if (timeout > MaxTimeOut)
     {
-      LOG_TRACE << "close from handleReadTimeOut: connection lost";
+      LOG_TRACE << "close from handleReadTimeOut: connection lost" << std::endl;
 
-      LOG_TRACE << "timeout = " << timeout;
+      LOG_TRACE << "timeout = " << timeout << std::endl;
       close();
     }
     else

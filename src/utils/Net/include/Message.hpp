@@ -2,11 +2,13 @@
 #define NET_MESSAGE_H
 
 #include <stdint.h>
+#include <functional>
 
 #include <SharedCreator.hpp>
 #include <BufferPtr.h>
 
 #include "MessageTypes.hpp"
+#include "SessionInterfacePtr.hpp"
 
 namespace Net
 {
@@ -45,6 +47,8 @@ namespace Net
   };
 #pragma pack(pop)
 
+  using MessageSendCallback = std::function<void(const SessionInterfacePtr&)>;
+
   class Message : public SharedCreator<Message>
   {
   protected:
@@ -53,6 +57,7 @@ namespace Net
 
     explicit Message(const MessageType& messageType);
     Message(const MessageType& messageType, const BufferPtr& payload);
+    Message(const MessageType& messageType, const BufferPtr& payload, const MessageSendCallback& callback);
 
   public:
     enum {HeaderSize = sizeof(Header)};
@@ -78,6 +83,7 @@ namespace Net
   protected:
     Header header_;
     BufferPtr payload_;
+    MessageSendCallback callback_;
   };
 }
 

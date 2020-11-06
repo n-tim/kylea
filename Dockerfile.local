@@ -21,8 +21,10 @@ RUN git clone --verbose https://github.com/protocolbuffers/protobuf.git \
 
 WORKDIR '/opt/app'
 
-COPY build_test.sh .
+COPY build_test.sh run_client.sh run_server.sh ./
 
 RUN chmod +x build_test.sh
+#run_client.sh run_server.sh
+RUN apt-get install -y openssl libssl-dev gdb
 
 CMD ["bash"]

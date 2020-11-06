@@ -4,6 +4,8 @@
 #include <memory>
 #include <functional>
 
+#include <boost/asio/ssl.hpp>
+
 #include <BufferPtr.h>
 #include <Timer.h>
 #include <ThreadPool.h>
@@ -28,6 +30,8 @@ namespace Net
   private:
     boost::asio::io_context ioService_;
     ThreadPool threadPool_;
+
+    boost::asio::ssl::context sslContext_;
 
     std::string ip_;
     int port_;
