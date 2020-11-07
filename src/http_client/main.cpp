@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <sstream>
 
 #include <boost/asio.hpp>
 
@@ -26,16 +27,16 @@ int main(int argc, char *argv[])
 {
   try
   {
-    if (argc < 3)
-    {
-      std::cerr << "Usage: " << argv[0] << " address " << " port " << std::endl;
-      return 1;
-    }
+    // if (argc < 3)
+    // {
+    //   std::cerr << "Usage: " << argv[0] << " address " << " port " << std::endl;
+    //   return 1;
+    // }
 
-    std::string ip(argv[1]);
-    int port = std::stoi(argv[2]);
+    // std::string ip(argv[1]);
+    // int port = std::stoi(argv[2]);
 
-    std::cerr << "args: " << ip << ":" << port << std::endl;
+    // std::cerr << "args: " << ip << ":" << port << std::endl;
 
     std::size_t cpuCount = 4;//(!(boost::thread::hardware_concurrency()) ? 2 : boost::thread::hardware_concurrency() * 2);
     boost::asio::io_context ioService(cpuCount);
@@ -67,8 +68,9 @@ int main(int argc, char *argv[])
 
           return true;
       };
+      sslContext_.set_default_verify_paths();
       sslContext_.set_verify_callback(cb);
-      sslContext_.set_verify_mode(context::verify_peer, error);
+      sslContext_.set_verify_mode(context::verify_none, error);
       if (error)
       {
         LOG_ERROR << "set_verify_mode: " << error.message();
@@ -77,51 +79,63 @@ int main(int argc, char *argv[])
       using boost::asio::ip::tcp;
       using boost::asio::ip::address;
 
+      std::string server = "google.com";
+
       tcp::resolver resolver(ioService);
-      tcp::resolver::query query(ip, std::to_string(port));
 
-      auto iter = resolver.resolve(query, error);
-
-      if (error)
-      {
-        LOG_ERROR << "error creating endpoint: " << error.message();
-        LOG_ERROR << "params = " << ip << ":" << port;
-        return 1;
-      }
-
-      tcp::endpoint endpoint = *iter;
-
-      LOG_DEBUG << "connecting to " << endpoint;
-
-      auto session = ClientHTTPSession::create(ioService, sslContext_);
-
-      auto openedHandle = [](const ClientHTTPSessionPtr& session)
-      {
-        LOG_TRACE << "handleSessionOpened:Connected";
-        auto payload = std::make_shared<std::string>("GET /\r\n");
-        session->send(payload);
-      };
-
-      auto closedHandle = [](const ClientHTTPSessionPtr&)
-      {
-        LOG_TRACE << "handleSessionOpened:Closed";
-      };
-
-      auto receivedHandle = [](const std::shared_ptr<std::string>& message, const ClientHTTPSessionPtr& session)
-      {
-        std::cout << *message;
-        if (message->empty())
+      resolver.async_resolve(server, "https", [&ioService, &sslContext_, server](const boost::system::error_code& error,
+                        tcp::resolver::results_type results){
+        if (!error)
         {
-          session->drop();
-        }
-      };
+          {
 
-      session->configure(openedHandle, closedHandle, receivedHandle);
-      LOG_TRACE << "async connect" << std::endl;
-      session->socket().async_connect(endpoint, [session](const boost::system::error_code& error)
-      {
-        LOG_TRACE_IF_ERROR(error, "async_connect handle");
-        session->open();
+            //LOG_DEBUG << "connecting to " << *endpoint_iterator;
+
+            auto session = ClientHTTPSession::create(ioService, sslContext_);
+
+            auto openedHandle = [server](const ClientHTTPSessionPtr& session)
+            {
+              LOG_TRACE << "handleSessionOpened:Connected";
+
+              std::stringstream ss;
+              ss << "GET /" << "\r\n"
+              << "Host: " << server << "\r\n"
+              << "Accept: */*\r\n"
+              << "Connection: close"
+              << "\r\n\r\n";
+
+              auto payload = std::make_shared<std::string>(ss.str());
+              session->send(payload);
+            };
+
+            auto closedHandle = [](const ClientHTTPSessionPtr&)
+            {
+              LOG_TRACE << "handleSessionOpened:Closed";
+            };
+
+            auto receivedHandle = [](const std::shared_ptr<std::string>& message, const ClientHTTPSessionPtr& session)
+            {
+              std::cout << *message;
+              if (message->empty())
+              {
+                session->drop();
+              }
+            };
+
+            session->configure(openedHandle, closedHandle, receivedHandle);
+            LOG_TRACE << "async connect" << std::endl;
+            boost::asio::async_connect(session->socket(), results, [session](const boost::system::error_code& error, const tcp::endpoint&)
+            {
+              LOG_TRACE_IF_ERROR(error, "async_connect handle");
+              session->open();
+            });
+          }
+        }
+        else
+        {
+          LOG_ERROR << "Error resolve: " << error.message() << "\n";
+        }
+
       });
     }
     LOG_TRACE << "hi there!" << std::endl;
