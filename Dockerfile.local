@@ -1,12 +1,8 @@
 FROM ubuntu:latest
 
-RUN apt-get update
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
-RUN apt-get install -y git build-essential cmake
-RUN apt-get install -y libboost-all-dev
-
-RUN apt-get install -y autoconf automake libtool
+RUN apt-get update && apt-get install -y git build-essential cmake libboost-all-dev autoconf automake libtool openssl libssl-dev
 
 WORKDIR '/opt'
 RUN git clone --verbose https://github.com/protocolbuffers/protobuf.git \
@@ -23,8 +19,6 @@ WORKDIR '/opt/app'
 
 COPY build_test.sh run_client.sh run_server.sh ./
 
-RUN chmod +x build_test.sh
-#run_client.sh run_server.sh
-RUN apt-get install -y openssl libssl-dev gdb
+RUN chmod +x build_test.sh run_client.sh run_server.sh
 
 CMD ["bash"]

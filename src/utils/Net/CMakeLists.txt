@@ -17,7 +17,8 @@ target_sources(Net PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Session.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/SessionManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Server.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/Client.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Client.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ClientHTTPSession.cpp)
 
 target_include_directories(Net PUBLIC include)
 
