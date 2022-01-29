@@ -8,5 +8,4 @@ cmake ../kylea -DCMAKE_BUILD_TYPE=debug
 make -j 2
 
 echo 'running tests'
-
 #exec /app/kylea-build-debug/test/kylea_tests

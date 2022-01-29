@@ -4,21 +4,19 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
 RUN apt-get update && apt-get install -y git build-essential cmake libboost-all-dev autoconf automake libtool openssl libssl-dev
 
-WORKDIR '/opt'
-RUN git clone --verbose https://github.com/protocolbuffers/protobuf.git \
-    && cd protobuf \
-    && git submodule update --init --recursive \
-    && ls -la \
-    && ./autogen.sh \
-    && ./configure --prefix=/usr \
-    && make -j2 && make install
-
-#-Dprotobuf_BUILD_TESTS=FALSE
+# WORKDIR '/opt'
+# RUN git clone --verbose https://github.com/protocolbuffers/protobuf.git \
+#     && cd protobuf \
+#     && git submodule update --init --recursive \
+#     && ls -la \
+#     && ./autogen.sh \
+#     && ./configure --prefix=/usr \
+#     && make -j2 && make install
 
 WORKDIR '/opt/app'
 
-COPY build_test.sh run_client.sh run_server.sh ./
+COPY scripts/build_kylea.sh ./
 
-RUN chmod +x build_test.sh run_client.sh run_server.sh
+RUN chmod +x build_kylea.sh
 
 CMD ["bash"]

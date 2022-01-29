@@ -11,6 +11,6 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost 1.70.0 REQUIRED system thread)
 
-add_subdirectory(proto)
+#add_subdirectory(proto)
 add_subdirectory(src)
 #add_subdirectory(test)
